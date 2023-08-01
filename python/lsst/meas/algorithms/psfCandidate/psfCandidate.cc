@@ -35,7 +35,7 @@ namespace {
 template <typename PixelT>
 void declarePsfCandidate(lsst::cpputils::python::WrapperCollection &wrappers, std::string const& suffix) {
     using Class = PsfCandidate<PixelT>;
-    using PyClass = py::class_<Class, std::shared_ptr<Class>, afw::math::SpatialCellImageCandidate>;
+    using PyClass = py::class_<Class, afw::math::SpatialCellImageCandidate>;
     std::string name = "PsfCandidate" + suffix;
 
     wrappers.wrapType(PyClass(wrappers.module, name.c_str()), [](auto &mod, auto &cls) {

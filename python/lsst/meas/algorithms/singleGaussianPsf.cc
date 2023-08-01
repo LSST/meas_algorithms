@@ -34,7 +34,7 @@ namespace algorithms {
 namespace {
 
 void declareSingleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PySingleGaussianPsf = py::class_<SingleGaussianPsf, std::shared_ptr<SingleGaussianPsf>, KernelPsf>;
+    using PySingleGaussianPsf = py::class_<SingleGaussianPsf, KernelPsf>;
     auto clsSingleGaussianPsf =
             wrappers.wrapType(PySingleGaussianPsf(wrappers.module, "SingleGaussianPsf"), [](auto &mod, auto &cls) {
 

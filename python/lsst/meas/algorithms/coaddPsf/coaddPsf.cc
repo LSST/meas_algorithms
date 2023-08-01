@@ -36,7 +36,7 @@ namespace {
 
 void declareCoaddPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
     /* CoaddPsfControl */
-    using PyCoaddPsfControl = py::class_<CoaddPsfControl, std::shared_ptr<CoaddPsfControl>>;
+    using PyCoaddPsfControl = py::class_<CoaddPsfControl>;
 
     wrappers.wrapType(PyCoaddPsfControl(wrappers.module, "CoaddPsfControl"), [](auto &mod, auto &cls) {
         cls.def(py::init<std::string, int>(), "warpingKernelName"_a = "lanczos3", "cacheSize"_a = 10000);
@@ -45,7 +45,7 @@ void declareCoaddPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
     });
 
     /* CoaddPsf */
-    using PyCoaddPsf = py::class_<CoaddPsf, std::shared_ptr<CoaddPsf>, ImagePsf>;
+    using PyCoaddPsf = py::class_<CoaddPsf, ImagePsf>;
 
     auto clsCoaddPsf = wrappers.wrapType(PyCoaddPsf(wrappers.module, "CoaddPsf"), [](auto &mod, auto &cls) {
         /* Constructors */

@@ -34,7 +34,7 @@ namespace algorithms {
 namespace {
 
 void declareDoubleGaussianPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyDoubleGaussianPsf = py::class_<DoubleGaussianPsf, std::shared_ptr<DoubleGaussianPsf>, KernelPsf>;
+    using PyDoubleGaussianPsf = py::class_<DoubleGaussianPsf, KernelPsf>;
     auto clsDef = wrappers.wrapType(PyDoubleGaussianPsf(wrappers.module, "DoubleGaussianPsf"), [](auto &mod, auto &cls) {
         cls.def(py::init<int, int, double, double, double>(), "width"_a, "height"_a, "sigma1"_a,
                                  "sigma2"_a = 0.0, "b"_a = 0.0);

@@ -56,7 +56,7 @@ void declareCoaddBoundedField(lsst::cpputils::python::WrapperCollection &wrapper
         cls.def("__eq__", &CoaddBoundedFieldElement::operator==, py::is_operator());
         cls.def("__ne__", &CoaddBoundedFieldElement::operator!=, py::is_operator());
     });
-    using PyClass = py::class_<CoaddBoundedField, std::shared_ptr<CoaddBoundedField>, afw::math::BoundedField>;
+    using PyClass = py::class_<CoaddBoundedField, afw::math::BoundedField>;
     auto clsField = wrappers.wrapType(PyClass(wrappers.module, "CoaddBoundedField"), [](auto &mod, auto &cls) {
 
         cls.attr("Element") = clsElement;

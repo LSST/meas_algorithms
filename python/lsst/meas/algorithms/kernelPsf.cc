@@ -34,7 +34,7 @@ namespace meas {
 namespace algorithms {
 namespace {
 void declareKernelPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyKernelPsf = py::class_<KernelPsf, std::shared_ptr<KernelPsf>, ImagePsf>;
+    using PyKernelPsf = py::class_<KernelPsf, ImagePsf>;
 
     auto clsKernelPsf = wrappers.wrapType(PyKernelPsf(wrappers.module, "KernelPsf"), [](auto &mod, auto &cls) {
         cls.def(py::init<afw::math::Kernel const &, geom::Point2D const &>(), "kernel"_a,

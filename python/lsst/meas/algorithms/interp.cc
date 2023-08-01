@@ -44,7 +44,7 @@ void declareInterpolateOverDefects(py::module& mod) {
 }
 
 void declareInterp(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyDefect =  py::class_<Defect, std::shared_ptr<Defect>, afw::image::DefectBase>;
+    using PyDefect =  py::class_<Defect, afw::image::DefectBase>;
     auto clsDefect = wrappers.wrapType(PyDefect(wrappers.module, "Defect"), [](auto &mod, auto &cls) {
         cls.def(py::init<const geom::BoxI &>(), "bbox"_a = geom::BoxI());
 

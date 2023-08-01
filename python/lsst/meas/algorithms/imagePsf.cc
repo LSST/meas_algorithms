@@ -22,7 +22,6 @@
 #include "pybind11/pybind11.h"
 #include "lsst/cpputils/python.h"
 
-#include "lsst/utils/python/PySharedPtr.h"
 #include "lsst/afw/table/io/python.h"
 #include "lsst/meas/algorithms/ImagePsf.h"
 #include "lsst/meas/algorithms/python.h"
@@ -30,15 +29,13 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-using lsst::utils::python::PySharedPtr;
-
 namespace lsst {
 namespace meas {
 namespace algorithms {
 namespace {
 
 void declareImagePsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyImagePsf = py::class_<ImagePsf, PySharedPtr<ImagePsf>, afw::detection::Psf, ImagePsfTrampoline<>>;
+    using PyImagePsf = py::class_<ImagePsf, afw::detection::Psf, ImagePsfTrampoline<>>;
     auto clsImagePsf = wrappers.wrapType(PyImagePsf(wrappers.module, "ImagePsf"), [](auto &mod, auto &cls) {
         cls.def(py::init<bool>(), "init", "isFixed"_a = false);  // Ctor for pure python subclasses
     });

@@ -35,7 +35,7 @@ namespace algorithms {
 namespace {
 
 void declarePcaPsf(lsst::cpputils::python::WrapperCollection &wrappers) {
-    using PyPcaPsf = py::class_<PcaPsf, std::shared_ptr<PcaPsf>, KernelPsf>;
+    using PyPcaPsf = py::class_<PcaPsf, KernelPsf>;
 
     auto clsPcaPsf = wrappers.wrapType(PyPcaPsf(wrappers.module, "PcaPsf"), [](auto &mod, auto &cls) {
         cls.def(py::init<std::shared_ptr<afw::math::LinearCombinationKernel>, geom::Point2D const &>(),
