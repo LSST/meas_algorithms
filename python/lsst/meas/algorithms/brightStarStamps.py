@@ -24,7 +24,7 @@
 __all__ = ["BrightStarStamp", "BrightStarStamps"]
 
 import logging
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from functools import reduce
 from operator import ior
@@ -34,15 +34,16 @@ from lsst.afw.geom import SpanSet, Stencil
 from lsst.afw.image import MaskedImageF
 from lsst.afw.math import Property, StatisticsControl, makeStatistics, stringToStatisticsProperty
 from lsst.afw.table.io import Persistable
+from lsst.daf.base import PropertyList
 from lsst.geom import Point2I
 
-from .stamps import AbstractStamp, Stamps, readFitsWithOptions
+from .stamps import StampBase, Stamps, readFitsWithOptions
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class BrightStarStamp(AbstractStamp):
+class BrightStarStamp(StampBase):
     """Single stamp centered on a bright star, normalized by its annularFlux.
 
     Parameters
@@ -55,8 +56,9 @@ class BrightStarStamp(AbstractStamp):
         Gaia object identifier
     position : `~lsst.geom.Point2I`
         Origin of the stamps in its origin exposure (pixels)
-    archive_element : `~lsst.afw.table.io.Persistable` or None, optional
-        Archive element (e.g. Transform or WCS) associated with this stamp.
+    archive_elements : `~collections.abc.Mapping`[ `str` , \
+                `~lsst.afw.table.io.Persistable`], optional
+            Archive elements (e.g. Transform / WCS) associated with this stamp.
     annularFlux : `float` or None, optional
         Flux in an annulus around the object
     """
@@ -65,7 +67,7 @@ class BrightStarStamp(AbstractStamp):
     gaiaGMag: float
     gaiaId: int
     position: Point2I
-    archive_element: Persistable | None = None
+    archive_elements: Mapping[str, Persistable] | None = None
     annularFlux: float | None = None
     minValidAnnulusFraction: float = 0.0
     validAnnulusFraction: float | None = None
@@ -73,7 +75,7 @@ class BrightStarStamp(AbstractStamp):
     optimalOuterRadius: int | None = None
 
     @classmethod
-    def factory(cls, stamp_im, metadata, idx, archive_element=None, minValidAnnulusFraction=0.0):
+    def factory(cls, stamp_im, metadata, idx, archive_elements=None, minValidAnnulusFraction=0.0):
         """This method is needed to service the FITS reader. We need a standard
         interface to construct objects like this. Parameters needed to
         construct this object are passed in via a metadata dictionary and then
@@ -90,8 +92,9 @@ class BrightStarStamp(AbstractStamp):
             needed by the constructor.
         idx : `int`
             Index into the lists in ``metadata``
-        archive_element : `~lsst.afw.table.io.Persistable` or None, optional
-            Archive element (e.g. Transform or WCS) associated with this stamp.
+        archive_elements : `~collections.abc.Mapping`[ `str` , \
+                `~lsst.afw.table.io.Persistable`], optional
+            Archive elements (e.g. Transform / WCS) associated with this stamp.
         minValidAnnulusFraction : `float`, optional
             The fraction of valid pixels within the normalization annulus of a
             star.
@@ -101,22 +104,38 @@ class BrightStarStamp(AbstractStamp):
         brightstarstamp : `BrightStarStamp`
             An instance of this class
         """
-        if "X0S" in metadata and "Y0S" in metadata:
-            x0 = metadata.getArray("X0S")[idx]
-            y0 = metadata.getArray("Y0S")[idx]
+        if "X0" in metadata and "Y0" in metadata:
+            x0 = metadata["X0"]
+            y0 = metadata["X0"]
             position = Point2I(x0, y0)
         else:
             position = None
         return cls(
             stamp_im=stamp_im,
-            gaiaGMag=metadata.getArray("G_MAGS")[idx],
-            gaiaId=metadata.getArray("GAIA_IDS")[idx],
+            gaiaGMag=metadata["G_MAGS"],
+            gaiaId=metadata["GAIA_IDS"],
             position=position,
-            archive_element=archive_element,
-            annularFlux=metadata.getArray("ANNULAR_FLUXES")[idx],
+            archive_elements=archive_elements,
+            annularFlux=metadata["ANNULAR_FLUXES"],
             minValidAnnulusFraction=minValidAnnulusFraction,
-            validAnnulusFraction=metadata.getArray("VALID_PIXELS_FRACTION")[idx],
+            validAnnulusFraction=metadata["VALID_PIXELS_FRACTION"],
         )
+
+    def _getMaskedImage(self):
+        return self.stamp_im
+
+    def _getArchiveElements(self):
+        return self.archive_elements
+
+    def _getMetadata(self) -> PropertyList | None:
+        md = PropertyList()
+        md["G_MAG"] = self.gaiaGMag
+        md["GAIA_ID"] = self.gaiaId
+        md["X0"] = self.position.x
+        md["Y0"] = self.position.y
+        md["ANNULAR_FLUX"] = self.annularFlux
+        md["VALID_PIXELS_FRACTION"] = self.validAnnulusFraction
+        return md
 
     def measureAndNormalize(
         self,
@@ -248,13 +267,8 @@ class BrightStarStamps(Stamps):
         use_archive=False,
     ):
         super().__init__(starStamps, metadata, use_mask, use_variance, use_archive)
-        # Ensure stamps contain a flux measure if expected to be normalized.
-        self._checkNormalization(False, innerRadius, outerRadius)
-        self._innerRadius, self._outerRadius = innerRadius, outerRadius
-        if innerRadius is not None and outerRadius is not None:
-            self.normalized = True
-        else:
-            self.normalized = False
+        # From v2 onwards, stamps are now always assumed to be unnormalized
+        self.normalized = False
         self.nb90Rots = nb90Rots
 
     @classmethod
@@ -449,26 +463,6 @@ class BrightStarStamps(Stamps):
             return bss, badStamps
         return bss
 
-    def _refresh_metadata(self):
-        """Refresh metadata. Should be called before writing the object out.
-
-        This method adds full lists of positions, Gaia magnitudes, IDs and
-        annular fluxes to the shared metadata.
-        """
-        self._metadata["G_MAGS"] = self.getMagnitudes()
-        self._metadata["GAIA_IDS"] = self.getGaiaIds()
-        positions = self.getPositions()
-        self._metadata["X0S"] = [xy0[0] for xy0 in positions]
-        self._metadata["Y0S"] = [xy0[1] for xy0 in positions]
-        self._metadata["ANNULAR_FLUXES"] = self.getAnnularFluxes()
-        self._metadata["VALID_PIXELS_FRACTION"] = self.getValidPixelsFraction()
-        self._metadata["NORMALIZED"] = self.normalized
-        self._metadata["INNER_RADIUS"] = self._innerRadius
-        self._metadata["OUTER_RADIUS"] = self._outerRadius
-        if self.nb90Rots is not None:
-            self._metadata["NB_90_ROTS"] = self.nb90Rots
-        return None
-
     @classmethod
     def readFits(cls, filename):
         """Build an instance of this class from a file.
@@ -493,26 +487,16 @@ class BrightStarStamps(Stamps):
         """
         stamps, metadata = readFitsWithOptions(filename, BrightStarStamp.factory, options)
         nb90Rots = metadata["NB_90_ROTS"] if "NB_90_ROTS" in metadata else None
-        if metadata["NORMALIZED"]:
-            return cls(
-                stamps,
-                innerRadius=metadata["INNER_RADIUS"],
-                outerRadius=metadata["OUTER_RADIUS"],
-                nb90Rots=nb90Rots,
-                metadata=metadata,
-                use_mask=metadata["HAS_MASK"],
-                use_variance=metadata["HAS_VARIANCE"],
-                use_archive=metadata["HAS_ARCHIVE"],
-            )
-        else:
-            return cls(
-                stamps,
-                nb90Rots=nb90Rots,
-                metadata=metadata,
-                use_mask=metadata["HAS_MASK"],
-                use_variance=metadata["HAS_VARIANCE"],
-                use_archive=metadata["HAS_ARCHIVE"],
-            )
+        # For backwards compatibility, always assume stamps are unnormalized.
+        # This allows older stamps to be read in successfully.
+        return cls(
+            stamps,
+            nb90Rots=nb90Rots,
+            metadata=metadata,
+            use_mask=metadata["HAS_MASK"],
+            use_variance=metadata["HAS_VARIANCE"],
+            use_archive=metadata["HAS_ARCHIVE"],
+        )
 
     def append(self, item, innerRadius=None, outerRadius=None):
         """Add an additional bright star stamp.
