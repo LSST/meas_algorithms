@@ -562,6 +562,84 @@ class RequirePrimary(pexConfig.Config):
         return selected
 
 
+class CullFromMaskedRegion(pexConfig.Config):
+    """Deselect sources that lie in a "bad" mask plane.
+
+    This will select against objects whose image coordinates lie in a region
+    with any of the mask bits in the `badMaskNames` list set. Namely used for
+    a reference catalog for which the flag columns we would get from the
+    measurement plugins do not exist.
+
+    NOTE: In the context of reference objects, it is recommended NOT to include
+    EDGE in the `badMaskNames` list as that will remove all the reference objects
+    outside the detector but within the pixelMargin (thus nulling the pixelMargin
+    padding all together!)
+    """
+    badMaskNames = pexConfig.ListField(
+        dtype=str,
+        default=["NO_DATA", "NOT_DEBLENDED"],
+        doc="List of mask planes for which sources should be removed if a bit is set.",
+    )
+    xColName = pexConfig.Field(
+        dtype=str,
+        default="centroid_x",
+        doc="Name of column for image x coordinate."
+    )
+    yColName = pexConfig.Field(
+        dtype=str,
+        default="centroid_y",
+        doc="Name of column for image y coordinate."
+    )
+
+    def apply(self, catalog, exposure):
+        """Apply the mask plane requirements to a catalog.
+
+        Returns whether the sources were selected.
+
+        Parameters
+        ----------
+        catalog : `lsst.afw.table.SourceCatalog` or `pandas.DataFrame`
+                  or `astropy.table.Table`
+            Catalog of sources to which the requirements will be applied.
+        exposure : `lsst.afw.image.Exposure` or None
+            The exposure whose mask plane is to be respected.
+
+
+        Returns
+        -------
+        selected : `numpy.ndarray`
+            Boolean array indicating for each source whether it is selected
+            (True means selected).
+
+        Raises
+        ------
+        RuntimeError
+            Raised if exposure passed is `None`.
+        """
+        if exposure is None:
+            raise RuntimeError("Must provide an exposure to CullFromMaskedRegion selection.")
+        xRefList = catalog[self.xColName]
+        yRefList = catalog[self.yColName]
+        # Convert x,y coords to integers to map to indices in mask plane
+        bbox = exposure.getBBox()
+        xMax = bbox.getMaxX()
+        yMax = bbox.getMaxY()
+        # If reference object nominally lies outside the detector, consider
+        # it to be at the edge (and thus obeys those mask planes).
+        xRefList = [int(min(max(0, xRef), xMax)) for xRef in xRefList]
+        yRefList = [int(min(max(0, yRef), yMax)) for yRef in yRefList]
+        badMaskNames = []
+        maskPlaneDict = exposure.getMask().getMaskPlaneDict()
+        for badName in self.badMaskNames:
+            if badName in maskPlaneDict:
+                badMaskNames.append(badName)
+        bitmask = exposure.mask.getPlaneBitMask(badMaskNames)
+        toKeep = ((exposure.mask.array & bitmask) == 0)
+        selected = toKeep[yRefList, xRefList]  # x & y flipped for numpy arrays
+
+        return selected
+
+
 class ScienceSourceSelectorConfig(pexConfig.Config):
     """Configuration for selecting science sources"""
     doFluxLimit = pexConfig.Field(dtype=bool, default=False, doc="Apply flux limit?")
@@ -660,6 +738,8 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
     doMagError = pexConfig.Field(dtype=bool, default=False, doc="Apply magnitude error limit?")
     doRequireFiniteRaDec = pexConfig.Field(dtype=bool, default=True,
                                            doc="Apply finite sky coordinate check?")
+    doCullFromMaskedRegion = pexConfig.Field(dtype=bool, default=False,
+                                             doc="Apply image masked region culling?")
     magLimit = pexConfig.ConfigField(dtype=MagnitudeLimit, doc="Magnitude limit to apply")
     flags = pexConfig.ConfigField(dtype=RequireFlags, doc="Flags to require")
     unresolved = pexConfig.ConfigField(dtype=RequireUnresolved, doc="Star/galaxy separation to apply")
@@ -669,6 +749,8 @@ class ReferenceSourceSelectorConfig(pexConfig.Config):
     magError = pexConfig.ConfigField(dtype=MagnitudeErrorLimit, doc="Magnitude error limit to apply")
     colorLimits = pexConfig.ConfigDictField(keytype=str, itemtype=ColorLimit, default={},
                                             doc="Color limits to apply; key is used as a label only")
+    cullFromMaskedRegion = pexConfig.ConfigField(dtype=CullFromMaskedRegion,
+                                                 doc="Image mask plane criteria to apply")
 
 
 @pexConfig.registerConfigurable("references", sourceSelectorRegistry)
@@ -718,7 +800,8 @@ class ReferenceSourceSelectorTask(BaseSourceSelectorTask):
             selected &= self.config.requireFiniteRaDec.apply(sourceCat)
         for limit in self.config.colorLimits.values():
             selected &= limit.apply(sourceCat)
-
+        if self.config.doCullFromMaskedRegion:
+            selected &= self.config.cullFromMaskedRegion.apply(sourceCat, exposure)
         self.log.info("Selected %d/%d references", selected.sum(), len(sourceCat))
 
         return pipeBase.Struct(selected=selected)
