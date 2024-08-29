@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask"]
+__all__ = ["ObjectSizeStarSelectorConfig", "ObjectSizeStarSelectorTask", "NoPsfLikeStarsError"]
 
 import sys
 
@@ -34,6 +34,7 @@ from lsst.afw.cameraGeom import PIXELS, TAN_PIXELS
 import lsst.afw.geom as afwGeom
 import lsst.pex.config as pexConfig
 import lsst.afw.display as afwDisplay
+from lsst.pipe.base import AlgorithmError
 from .sourceSelector import BaseSourceSelectorTask, sourceSelectorRegistry
 
 afwDisplay.setDefaultMaskTransparency(75)
@@ -128,6 +129,34 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
         if self.widthMin > self.widthMax:
             msg = f"widthMin ({self.widthMin}) > widthMax ({self.widthMax})"
             raise pexConfig.FieldValidationError(ObjectSizeStarSelectorConfig.widthMin, self, msg)
+
+
+class NoPsfLikeStarsError(AlgorithmError):
+    """Raised if no likely stars are found from ObjectSizeStarSelector.
+
+    Parameters
+    ----------
+    num_input_sources : `int`
+        Number of sources available to the selector.
+
+    """
+
+    def __init__(
+        self,
+        num_input_sources,
+    ) -> None:
+        self.num_input_sources = num_input_sources
+
+        super().__init__(
+            f"Failed to select stars: no good stars out of "
+            f"{num_input_sources} available. "
+        )
+
+    @property
+    def metadata(self) -> dict:
+        return {
+            "num_input_sources": self.num_input_sources,
+        }
 
 
 class EventHandler:
@@ -353,7 +382,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
                 sourceCat. (`numpy.ndarray` of `bool`)
         """
         if len(sourceCat) == 0:
-            raise RuntimeError("Input catalog for source selection is empty.")
+            raise NoPsfLikeStarsError(num_input_sources=len(sourceCat))
 
         import lsstDebug
         display = lsstDebug.Info(__name__).display
@@ -405,7 +434,7 @@ class ObjectSizeStarSelectorTask(BaseSourceSelectorTask):
         good = numpy.logical_not(bad)
 
         if not numpy.any(good):
-            raise RuntimeError("No objects passed our cuts for consideration as psf stars")
+            raise NoPsfLikeStarsError(num_input_sources=len(sourceCat))
 
         mag = -2.5*numpy.log10(flux[good])
         width = width[good]

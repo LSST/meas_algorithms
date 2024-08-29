@@ -23,7 +23,7 @@ import unittest
 import numpy as np
 
 import lsst.afw.table as afwTable
-from lsst.meas.algorithms import sourceSelector
+from lsst.meas.algorithms import sourceSelector, NoPsfLikeStarsError
 import lsst.meas.base.tests
 import lsst.utils.tests
 
@@ -75,6 +75,10 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         del self.badFlags
         del self.sourceSelector
 
+    def testNoInputSources(self):
+        with self.assertRaises(NoPsfLikeStarsError):
+            self.sourceSelector.selectSources(self.sourceCat)
+
     def testSelectSourcesGood(self):
         for i in range(5):
             addGoodSource(self.sourceCat, i)
@@ -96,7 +100,7 @@ class TestObjectSizeSourceSelector(lsst.utils.tests.TestCase):
         for i, flag in enumerate(self.badFlags):
             addGoodSource(self.sourceCat, i)
             self.sourceCat[i].set(flag, True)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NoPsfLikeStarsError):
             self.sourceSelector.selectSources(self.sourceCat)
 
     def testSelectSourcesSignalToNoiseCuts(self):
