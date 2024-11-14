@@ -115,6 +115,7 @@ class ObjectSizeStarSelectorConfig(BaseSourceSelectorTask.ConfigClass):
         dtype=str,
         default=[
             "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_nodata",
             "base_PixelFlags_flag_interpolatedCenter",
             "base_PixelFlags_flag_saturatedCenter",
             "base_PixelFlags_flag_crCenter",

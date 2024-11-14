@@ -161,6 +161,7 @@ class MeasureApCorrConfig(lsst.pex.config.Config):
         selector.flags.good = []
         selector.flags.bad = [
             "base_PixelFlags_flag_edge",
+            "base_PixelFlags_flag_nodata",
             "base_PixelFlags_flag_interpolatedCenter",
             "base_PixelFlags_flag_saturatedCenter",
             "base_PixelFlags_flag_crCenter",
