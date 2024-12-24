@@ -295,15 +295,20 @@ def getDeblendPrimaryFlags(sources):
         # the number of deblended sources in the catalog,
         # because some peaks might have been culled during deblending.
         nPeaks = sources["deblend_nPeaks"]
-        parentNChild = sources["deblend_parentNChild"]
+        nChild = sources["deblend_nChild"]
+        parentNPeaks = sources["deblend_parentNPeaks"]
+        depth = sources["deblend_depth"]
         # It is possible for a catalog to contain a hierarchy of sources,
         # so we mark the leaves (end nodes of the hierarchy tree with no
         # children).
-        isLeaf = nPeaks == 1
-        fromBlend = parentNChild > 1
-        isIsolated = isLeaf & ((parent == 0) | parentNChild == 1)
-        isDeblendedSource = (fromBlend & isLeaf) | (isIsolated & (parent == 0))
-        isDeblendedModelSource = (parent != 0) & isLeaf
+        isLeaf = nChild == 0
+        isChild = depth > 0
+        isSibling = parentNPeaks > 1
+        isDeblendedModelSource = isLeaf & isChild
+        fromBlend = isDeblendedModelSource & (isSibling | depth > 1)
+        isIsolatedParent = (depth == 0) & (nPeaks == 1)
+        isIsolated = isIsolatedParent | ((depth == 1) & ~isSibling)
+        isDeblendedSource = fromBlend | isIsolatedParent
     else:
         # Set the flags for meas_deblender
         fromBlend = parent != 0
