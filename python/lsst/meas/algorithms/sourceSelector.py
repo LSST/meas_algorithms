@@ -588,7 +588,8 @@ class ScienceSourceSelectorConfig(pexConfig.Config):
 
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_saturated", "base_PsfFlux_flag"]
+        self.flags.bad = ["base_PixelFlags_flag_edge", "base_PixelFlags_flag_nodata",
+                          "base_PixelFlags_flag_saturated", "base_PsfFlux_flag"]
         self.signalToNoise.fluxField = "base_PsfFlux_instFlux"
         self.signalToNoise.errField = "base_PsfFlux_instFluxErr"
         self.skyFlag.good = ["sky_source"]
