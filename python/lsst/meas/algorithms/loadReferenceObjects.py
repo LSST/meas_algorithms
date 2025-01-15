@@ -188,7 +188,7 @@ class ReferenceObjectLoader:
             config = self.ConfigClass()
         self.config = config
         self.dataIds = dataIds
-        self.refCats = refCats
+        self.refCats = list(refCats)
         self.name = name
         self.log = log or logging.getLogger(__name__).getChild("ReferenceObjectLoader")
 
@@ -764,6 +764,47 @@ class ReferenceObjectLoader:
         sphRadius = sphgeom.Angle(radius.asRadians())
         circularRegion = sphgeom.Circle(centerVector, sphRadius)
         return self.loadRegion(circularRegion, filterName, epoch=epoch)
+
+    def loadSchema(self, filterName):
+        """Load the schema for the reference catalog.
+
+        Parameters
+        ----------
+        filterName : `str`
+            Name of camera filter.
+
+         Returns
+        -------
+        output : `lsst.pipe.base.Struct`
+            Results struct with attributes:
+
+            ``schema``
+                Schema of the reference catalogs returned by other 'load'
+                methods.
+            ``fluxField``
+                Name of the field containing the flux associated with
+                ``filterName``.
+        """
+        if not self.refCats:
+            raise RuntimeError("No reference tables could be found.")
+        cat = self.refCats[0].get()
+        # Replace the original handle with an in-memory one that caches what
+        # we've already read, since there's a good chance we'll want to read it
+        # later.
+        self.refCats[0] = pipeBase.InMemoryDatasetHandle(cat, dataId=self.refCats[0].dataId, copy=False)
+        emptyCat = type(cat)(cat.table.clone())
+        expandedEmptyCat = self._remapReferenceCatalogSchema(
+            emptyCat,
+            anyFilterMapsToThis=self.config.anyFilterMapsToThis,
+            filterMap=self.config.filterMap,
+        )
+        fluxField = getRefFluxField(expandedEmptyCat.schema, filterName)
+        if expandedEmptyCat.schema[fluxField].asField().getUnits() != "nJy":
+            # if the flux field is not in nJy, check the refcat format version
+            version = getFormatVersionFromRefCat(emptyCat)
+            if version > LATEST_FORMAT_VERSION:
+                raise ValueError(f"Unsupported refcat format version: {version} > {LATEST_FORMAT_VERSION}.")
+        return pipeBase.Struct(schema=expandedEmptyCat.schema, fluxField=fluxField)
 
 
 def getRefFluxField(schema, filterName):

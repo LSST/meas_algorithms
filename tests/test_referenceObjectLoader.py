@@ -73,7 +73,7 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
         for filterMap in ({}, {"camr": "r"}):
             config = ReferenceObjectLoader.ConfigClass()
             config.filterMap = filterMap
-            loader = ReferenceObjectLoader(None, None, name=None, config=config)
+            loader = ReferenceObjectLoader(None, [], name=None, config=config)
             refSchema = _makeSchema(filterNameList="r")
             loader._addFluxAliases(refSchema,
                                    anyFilterMapsToThis=config.anyFilterMapsToThis,
@@ -113,7 +113,7 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
         # test anyFilterMapsToThis
         config = ReferenceObjectLoader.ConfigClass()
         config.anyFilterMapsToThis = "gg"
-        loader = ReferenceObjectLoader(None, None, name=None, config=config)
+        loader = ReferenceObjectLoader(None, [], name=None, config=config)
         refSchema = _makeSchema(filterNameList=["gg"])
         loader._addFluxAliases(refSchema,
                                anyFilterMapsToThis=config.anyFilterMapsToThis,
@@ -129,7 +129,7 @@ class ReferenceObjectLoaderGenericTests(lsst.utils.tests.TestCase):
     def testGetMetadataCircle(self):
         center = lsst.geom.SpherePoint(100*lsst.geom.degrees, 45*lsst.geom.degrees)
         radius = lsst.geom.Angle(1*lsst.geom.degrees)
-        loader = ReferenceObjectLoader(None, None, name=None)
+        loader = ReferenceObjectLoader(None, [], name=None)
         metadata = loader.getMetadataCircle(center, radius, "fakeR")
         self.assertEqual(metadata['RA'], center.getLongitude().asDegrees())
         self.assertEqual(metadata['DEC'], center.getLatitude().asDegrees())
