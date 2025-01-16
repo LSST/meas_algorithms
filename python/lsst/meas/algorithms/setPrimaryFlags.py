@@ -305,7 +305,7 @@ def getDeblendPrimaryFlags(sources):
         isChild = depth > 0
         isSibling = parentNPeaks > 1
         isDeblendedModelSource = isLeaf & isChild
-        fromBlend = isDeblendedModelSource & (isSibling | depth > 1)
+        fromBlend = isDeblendedModelSource & isSibling
         isIsolatedParent = (depth == 0) & (nPeaks == 1)
         isIsolated = isIsolatedParent | ((depth == 1) & ~isSibling)
         isDeblendedSource = fromBlend | isIsolatedParent
